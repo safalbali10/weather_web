@@ -2,7 +2,7 @@ import urllib.request
 import json
 
 # Your OpenWeatherMap API key
-API_KEY = "d98b40ae53752993ac752a01d4fff840"
+API_KEY = "5387e2a2a2537f315671debf5d01406f"
 
 # Base URL for the current weather endpoint
 # units=metric gives us Celsius temperatures
