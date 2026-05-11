@@ -1,4 +1,5 @@
 import urllib.request
+import urllib.parse
 import json
 
 # Your OpenWeatherMap API key
@@ -15,8 +16,10 @@ def get_weather(city):
     Returns a dictionary with temperature, humidity, condition, and feels-like temp.
     Returns None if the city is not found or something goes wrong.
     """
-    # Build the full URL with query parameters
-    url = f"{BASE_URL}?q={city}&appid={API_KEY}&units=metric"
+    # URL-encode the city name so spaces become %20 (e.g. "new york" → "new+york")
+    # Without this, spaces in the URL cause a crash
+    encoded_city = urllib.parse.quote_plus(city)
+    url = f"{BASE_URL}?q={encoded_city}&appid={API_KEY}&units=metric"
 
     try:
         # Make the HTTP request and read the response
