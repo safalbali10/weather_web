@@ -1,13 +1,36 @@
 import urllib.request
 import urllib.parse
 import json
-
-# Your OpenWeatherMap API key
-API_KEY = "5387e2a2a2537f315671debf5d01406f"
+import os
 
 # Base URL for the current weather endpoint
 # units=metric gives us Celsius temperatures
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+
+
+def load_env(filepath):
+    """
+    Reads a .env file and loads each KEY=VALUE line into os.environ.
+    We do this manually so we don't need any third-party packages.
+    Lines starting with # are comments and are ignored.
+    """
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            # Skip blank lines and comments
+            if not line or line.startswith("#"):
+                continue
+            # Split on the first '=' to get key and value
+            key, _, value = line.partition("=")
+            os.environ[key.strip()] = value.strip()
+
+
+# Load the .env file that lives in the same folder as this script
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+load_env(env_path)
+
+# Read the API key from the environment — never hardcoded in the source code
+API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 
 
 def get_weather(city):
@@ -16,6 +39,11 @@ def get_weather(city):
     Returns a dictionary with temperature, humidity, condition, and feels-like temp.
     Returns None if the city is not found or something goes wrong.
     """
+    # Stop early with a helpful message if the API key wasn't loaded
+    if not API_KEY:
+        print("  Error: OPENWEATHER_API_KEY not found in .env file.")
+        return None
+
     # URL-encode the city name so spaces become %20 (e.g. "new york" → "new+york")
     # Without this, spaces in the URL cause a crash
     encoded_city = urllib.parse.quote_plus(city)
