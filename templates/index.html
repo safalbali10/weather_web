@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather App</title>
+  <style>
+    /* ── Reset & base ────────────────────────────── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 16px 60px;
+      color: #fff;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #a8edea, #fed6e3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      margin-top: 8px;
+      font-size: 1rem;
+      color: #a0aec0;
+    }
+
+    /* ── Search card ─────────────────────────────── */
+    .search-card {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ── Search form ─────────────────────────────── */
+    .search-form {
+      display: flex;
+      gap: 12px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 50px;
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.25s, background 0.25s;
+    }
+
+    .search-input::placeholder {
+      color: #a0aec0;
+    }
+
+    .search-input:focus {
+      border-color: #a8edea;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .search-btn {
+      padding: 14px 28px;
+      border-radius: 50px;
+      border: none;
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      color: #1a1a2e;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .search-btn:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+
+    .search-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ── Error message ───────────────────────────── */
+    .error-box {
+      margin-top: 24px;
+      background: rgba(255, 100, 100, 0.15);
+      border: 1px solid rgba(255, 100, 100, 0.4);
+      border-radius: 14px;
+      padding: 14px 20px;
+      color: #ff9a9a;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+
+    /* ── Weather result card ─────────────────────── */
+    .weather-card {
+      margin-top: 28px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      padding: 32px 28px;
+      animation: fadeInUp 0.4s ease;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* City name & country */
+    .city-name {
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .city-country {
+      text-align: center;
+      color: #a0aec0;
+      font-size: 0.9rem;
+      margin-top: 2px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    /* Big temperature + icon */
+    .temp-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .weather-icon {
+      font-size: 4rem;
+      line-height: 1;
+    }
+
+    .temperature {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .temp-unit {
+      font-size: 2rem;
+      font-weight: 400;
+      color: #a0aec0;
+      align-self: flex-start;
+      margin-top: 10px;
+    }
+
+    .condition-text {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #cbd5e0;
+      margin-bottom: 28px;
+    }
+
+    /* Detail stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 16px 12px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .stat-box:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-icon {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    /* ── Footer ──────────────────────────────────── */
+    .footer {
+      margin-top: 50px;
+      font-size: 0.8rem;
+      color: #4a5568;
+    }
+
+    /* ── Mobile adjustments ──────────────────────── */
+    @media (max-width: 480px) {
+      .header h1 { font-size: 2rem; }
+      .search-card { padding: 28px 20px; }
+      .search-form { flex-direction: column; }
+      .search-btn { border-radius: 14px; }
+      .temperature { font-size: 4rem; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .stat-box { padding: 12px 8px; }
+      .stat-value { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🌤 Weather</h1>
+    <p>Real-time weather for any city in the world</p>
+  </div>
+
+  <!-- Main card (search + results) -->
+  <div class="search-card">
+
+    <!-- Search form -->
+    <form class="search-form" method="POST" action="/">
+      <input
+        class="search-input"
+        type="text"
+        name="city"
+        placeholder="Enter city name…"
+        value="{{ city_query }}"
+        autocomplete="off"
+        autofocus
+      />
+      <button class="search-btn" type="submit">Search</button>
+    </form>
+
+    <!-- Error message -->
+    {% if error %}
+      <div class="error-box">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <!-- Weather result -->
+    {% if weather %}
+      <div class="weather-card">
+
+        <!-- City and country -->
+        <div class="city-name">{{ weather.city }}</div>
+        <div class="city-country">{{ weather.country }}</div>
+
+        <!-- Big temperature + icon -->
+        <div class="temp-row">
+          <div class="weather-icon">{{ weather.icon }}</div>
+          <div class="temperature">{{ weather.temperature }}</div>
+          <div class="temp-unit">°C</div>
+        </div>
+
+        <div class="condition-text">{{ weather.condition }}</div>
+
+        <!-- Stat boxes -->
+        <div class="stats-grid">
+
+          <div class="stat-box">
+            <div class="stat-icon">🌡️</div>
+            <div class="stat-label">Feels Like</div>
+            <div class="stat-value">{{ weather.feels_like }}°C</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon">💧</div>
+            <div class="stat-label">Humidity</div>
+            <div class="stat-value">{{ weather.humidity }}%</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon">💨</div>
+            <div class="stat-label">Wind</div>
+            <div class="stat-value">{{ weather.wind_speed }} km/h</div>
+          </div>
+
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+
+  <div class="footer">Powered by OpenWeatherMap · Built with Flask</div>
+
+</body>
+</html>
