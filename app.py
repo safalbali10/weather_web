@@ -13,6 +13,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
+@app.route('/debug')
+def debug():
+    """Shows whether the API key was successfully loaded from the environment."""
+    return f"API key loaded: {bool(os.getenv('OPENWEATHER_API_KEY'))}"
+
 # OpenWeatherMap API base URL
 API_URL = "https://api.openweathermap.org/data/2.5/weather"
 
