@@ -1,2 +1,22 @@
-# Never commit the .env file — it contains secret API keys
+# Secret keys and environment variables — NEVER commit these
 .env
+.env.*
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# macOS system files
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
