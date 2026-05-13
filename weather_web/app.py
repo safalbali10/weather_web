@@ -1,10 +1,11 @@
 """
 Flask Weather Web App
-Shows current weather for any city using the OpenWeatherMap API.
+Shows current weather and a 5-day forecast for any city using the OpenWeatherMap API.
 """
 
 import os
 import requests
+from datetime import datetime
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
 
@@ -13,8 +14,14 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# OpenWeatherMap API base URL
+@app.route('/debug')
+def debug():
+    """Shows whether the API key was successfully loaded from the environment."""
+    return f"API key loaded: {bool(os.getenv('OPENWEATHER_API_KEY'))}"
+
+# OpenWeatherMap API URLs
 API_URL = "https://api.openweathermap.org/data/2.5/weather"
+FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 
 # Maps weather condition codes to emoji icons
 WEATHER_ICONS = {
@@ -30,6 +37,82 @@ WEATHER_ICONS = {
     "Fog": "🌫️",
     "Tornado": "🌪️",
 }
+
+
+def get_forecast(city):
+    """
+    Fetches a 5-day weather forecast for a city from OpenWeatherMap.
+    The free API returns one entry every 3 hours for 5 days.
+    We group those entries by day and pick the high temp, low temp,
+    and the condition closest to noon for each day.
+    Returns a list of daily forecast dicts, or None on error.
+    """
+    api_key = os.getenv("OPENWEATHER_API_KEY")
+
+    params = {
+        "q": city,
+        "appid": api_key,
+        "units": "metric",
+    }
+
+    try:
+        response = requests.get(FORECAST_URL, params=params, timeout=5)
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        data = response.json()
+
+        # Group the 3-hourly forecast entries by calendar date
+        # Each entry has a "dt_txt" like "2025-05-13 12:00:00"
+        days = {}
+        for entry in data["list"]:
+            date_str = entry["dt_txt"].split(" ")[0]   # e.g. "2025-05-13"
+            if date_str not in days:
+                days[date_str] = []
+            days[date_str].append(entry)
+
+        forecast = []
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        for date_str in sorted(days.keys()):
+            # Skip today — we already show current conditions at the top
+            if date_str == today_str:
+                continue
+
+            entries = days[date_str]
+
+            # Find the highest and lowest temperatures across all entries for this day
+            temps = [e["main"]["temp"] for e in entries]
+            temp_high = round(max(temps))
+            temp_low  = round(min(temps))
+
+            # Use the entry closest to noon for the icon and condition description
+            noon_entry = min(
+                entries,
+                key=lambda e: abs(int(e["dt_txt"].split(" ")[1].split(":")[0]) - 12)
+            )
+            condition_main = noon_entry["weather"][0]["main"]
+            condition      = noon_entry["weather"][0]["description"].title()
+            icon           = WEATHER_ICONS.get(condition_main, "🌡️")
+
+            # Convert the date string to a human-readable day name and short date
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            day_name = date_obj.strftime("%A")    # e.g. "Monday"
+            day_date = date_obj.strftime("%b %d") # e.g. "May 13"
+
+            forecast.append({
+                "day_name":  day_name,
+                "day_date":  day_date,
+                "temp_high": temp_high,
+                "temp_low":  temp_low,
+                "condition": condition,
+                "icon":      icon,
+            })
+
+        return forecast
+
+    except requests.exceptions.RequestException:
+        return None
 
 
 def get_weather(city):
@@ -82,8 +165,10 @@ def index():
     """
     Main page — handles both the empty search page (GET)
     and the weather result after the user submits a city (POST).
+    Also fetches the 5-day forecast when weather data is found.
     """
     weather = None
+    forecast = None
     error = None
     city_query = ""
 
@@ -91,12 +176,16 @@ def index():
         city_query = request.form.get("city", "").strip()
         if city_query:
             weather, error = get_weather(city_query)
+            # Only fetch the forecast if current weather was found successfully
+            if weather:
+                forecast = get_forecast(city_query)
         else:
             error = "Please enter a city name."
 
-    return render_template("index.html", weather=weather, error=error, city_query=city_query)
+    return render_template("index.html", weather=weather, forecast=forecast, error=error, city_query=city_query)
 
 
 if __name__ == "__main__":
-    # Debug mode is fine for local development
-    app.run(debug=True, port=5000)
+    # Use Railway's PORT env var in production, fall back to 5000 locally
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)

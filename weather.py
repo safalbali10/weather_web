@@ -2,10 +2,14 @@ import urllib.request
 import urllib.parse
 import json
 import os
+from datetime import datetime
 
 # Base URL for the current weather endpoint
 # units=metric gives us Celsius temperatures
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+
+# URL for the 5-day forecast endpoint (free plan gives 3-hourly data for 5 days)
+FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 
 
 def load_env(filepath):
@@ -85,6 +89,75 @@ def get_weather(city):
         return None
 
 
+def get_forecast(city):
+    """
+    Fetches a 5-day weather forecast for the given city from OpenWeatherMap.
+    The free API gives one reading every 3 hours for 5 days (40 readings total).
+    We group those by day and return one entry per day showing:
+      - the day name and date
+      - the highest and lowest temperatures that day
+      - the weather condition at noon (or the closest reading to noon)
+    Returns a list of daily dicts, or None if something goes wrong.
+    """
+    if not API_KEY:
+        return None
+
+    encoded_city = urllib.parse.quote_plus(city)
+    url = f"{FORECAST_URL}?q={encoded_city}&appid={API_KEY}&units=metric"
+
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+
+        # Group the 3-hourly entries by date (e.g. "2025-05-13")
+        days = {}
+        for entry in data["list"]:
+            date_str = entry["dt_txt"].split(" ")[0]
+            if date_str not in days:
+                days[date_str] = []
+            days[date_str].append(entry)
+
+        forecast = []
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        for date_str in sorted(days.keys()):
+            # Skip today — current conditions are already shown above
+            if date_str == today_str:
+                continue
+
+            entries = days[date_str]
+
+            # Find the highest and lowest temperature across all entries for this day
+            temps = [e["main"]["temp"] for e in entries]
+            temp_high = max(temps)
+            temp_low  = min(temps)
+
+            # Use the entry closest to noon for the weather description
+            noon_entry = min(
+                entries,
+                key=lambda e: abs(int(e["dt_txt"].split(" ")[1].split(":")[0]) - 12)
+            )
+            condition = noon_entry["weather"][0]["description"]
+
+            # Format the date as a readable day name + short date
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            day_name = date_obj.strftime("%A")    # e.g. "Monday"
+            day_date = date_obj.strftime("%b %d") # e.g. "May 13"
+
+            forecast.append({
+                "day_name":  day_name,
+                "day_date":  day_date,
+                "temp_high": temp_high,
+                "temp_low":  temp_low,
+                "condition": condition,
+            })
+
+        return forecast
+
+    except (urllib.error.URLError, KeyError):
+        return None
+
+
 def display_weather(weather):
     """
     Prints the weather information in a clean, readable format.
@@ -96,6 +169,27 @@ def display_weather(weather):
     print(f"  Temperature : {weather['temperature']:.1f} °C")
     print(f"  Feels Like  : {weather['feels_like']:.1f} °C")
     print(f"  Humidity    : {weather['humidity']}%")
+    print()
+
+
+def display_forecast(forecast):
+    """
+    Prints the 5-day forecast in a simple table format.
+    Each row shows the day name, date, high/low temps, and weather condition.
+    """
+    print(f"  {'─' * 55}")
+    print(f"  {'5-Day Forecast':^55}")
+    print(f"  {'─' * 55}")
+    print(f"  {'Day':<12} {'Date':<10} {'High':>6} {'Low':>6}  Condition")
+    print(f"  {'─' * 55}")
+
+    for day in forecast:
+        print(
+            f"  {day['day_name']:<12} {day['day_date']:<10} "
+            f"{day['temp_high']:>5.1f}° {day['temp_low']:>5.1f}°  {day['condition'].capitalize()}"
+        )
+
+    print(f"  {'─' * 55}")
     print()
 
 
@@ -117,10 +211,15 @@ def main():
             print("\nGoodbye!")
             break
 
-        # Fetch and display the weather
+        # Fetch and display the current weather
         weather = get_weather(city)
         if weather:
             display_weather(weather)
+
+            # Fetch and display the 5-day forecast
+            forecast = get_forecast(city)
+            if forecast:
+                display_forecast(forecast)
 
 
 # Run the app only when this file is executed directly
