@@ -15,9 +15,23 @@ load_dotenv()
 app = Flask(__name__)
 
 @app.route('/debug')
-def debug():
-    """Shows whether the API key was successfully loaded from the environment."""
-    return f"API key loaded: {bool(os.getenv('OPENWEATHER_API_KEY'))}"
+@app.route('/debug/<city>')
+def debug(city="London"):
+    """
+    Diagnostic page — visit /debug or /debug/YourCity on Railway to see:
+    - whether the API key is loaded
+    - whether the current weather call works
+    - whether the forecast call works, and how many days it returns
+    This makes it easy to spot what's failing without reading server logs.
+    """
+    api_key_loaded = bool(os.getenv("OPENWEATHER_API_KEY"))
+    weather, weather_err = get_weather(city)
+    forecast = get_forecast(city)
+    return (
+        f"API key loaded : {api_key_loaded}\n"
+        f"Weather result : {weather if weather else weather_err}\n"
+        f"Forecast days  : {len(forecast) if forecast else 0}  →  {forecast}\n"
+    ), 200, {"Content-Type": "text/plain"}
 
 # OpenWeatherMap API URLs
 API_URL = "https://api.openweathermap.org/data/2.5/weather"
@@ -111,7 +125,11 @@ def get_forecast(city):
 
         return forecast
 
-    except requests.exceptions.RequestException:
+    except Exception as e:
+        # Log the actual error so it shows up in Railway's deployment logs.
+        # Previously this was a silent return None — that made it impossible to
+        # diagnose failures on the server.
+        print(f"[get_forecast] ERROR for city '{city}': {type(e).__name__}: {e}")
         return None
 
 
